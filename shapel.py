@@ -46,3 +46,5 @@ def shapel(xi, elxy):
     det = np.linalg.det(gj)
     gjinv = np.linalg.inv(gj)
     gdsf = gjinv@dsf  # DN_dx Eqn 1.138
+    
+    return sf, gdsf, det
