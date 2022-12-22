@@ -225,7 +225,7 @@ def itgzone(xyz, le, nout):
 # -------------------------------------------------------------------------
 def mooney(F, A10, A01, K, LTAN):
     """ 
-    2nd PK stress and material stiffness for Money-Rivlin Material.
+    Calculate 2nd PK stress and material stiffness for Mooney-Rivlin hyperelastic material.
 
     Inputs:
             F : Deformation gradient [3,3]
@@ -281,9 +281,8 @@ def mooney(F, A10, A01, K, LTAN):
     Stress = A10*J1E + A01*J2E + K*(J3-1)*J3E
 
     # For Material stiffness
-
     D = np.zeros(shape=(6, 6))
-    if LTAN:
+    if LTAN:    # Asked to compute material stiffness D
         # dI_dEE
         I2EE = np.array([[0, 4, 4, 0, 0, 0],
                          [4, 0, 4, 0, 0, 0],
