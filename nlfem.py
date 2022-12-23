@@ -459,7 +459,7 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
 
 
 # ----------------------------------------------------------------------------
-def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, le, force, gkf):
+def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, le):
     """
     Main program for Hyperelastic/elastoplastic analysis
     """
@@ -526,7 +526,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
         elif MID > 0:
             raise NotImplementedError("Plast3d not available")
         elif MID < 0:
-            raise NotImplementedError("Hyper3D not available")
+            raise hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le)
         else:
             raise NotImplementedError("Wrong material")
 
@@ -586,4 +586,11 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                 if ndisp != 0:
                     fixeddof = ndof*(sdispt[:, 0] - 1) + sdispt[:, 1]
                     gkf[fixeddof] = np.zeros([ndisp, neq])
+                    
+                    
+                    
+                    
+                    
+                    
+                    
 # -------------------------------------------------------------------------
