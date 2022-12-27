@@ -508,6 +508,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
         FLAG10 = 0
         # Store previously converged displacement for the sake of bisection
         cdisp = disptd.copy()
+        
         if itol == 1:  # No bisection
             delta = delta0
             tary[itol-1] = time + delta
@@ -516,12 +517,15 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
             delta = tary[itol-1] - tary[itol]   # New time increment
             tary[itol] = 0  # Empty converged bisection level
             istep = istep - 1   # Decrease load increment
+            
         time0 = time    # Save current time
+        
         # Update stress and history variables
         UPDATE = True
         LTAN = False
         gkf = np.zeros((neq, neq))  # make it sparse
         force = np.zeros(neq)
+        
         if MID == 0:
             force, gkf, sigma = elast3d(
                 etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma)
@@ -536,7 +540,8 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
         if istep >= 0:
             prout(outfile, time, numnp, ne, ndof, sigma, disptd)
 
-        time += delta    # Increase time
+        # Begin adding load steps (increase in time)
+        time += delta
         istep += 1
 
         # Check time and control bisection
@@ -592,6 +597,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                 # Assemble K and F
                 UPDATE = False
                 LTAN = True
+                
                 if MID == 0:
                     elast3d(etan, UPDATE, LTAN, ne, ndof, xyz,
                             le, disptd, force, gkf, sigma)
@@ -623,9 +629,11 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                     freedof = np.setdiff1d(alldof, fixeddof)
                     resn = np.max(np.abs(force[freedof]))
                     output(1, iter, resn, time, delta)
+                    
                     if resn < tol:
                         FLAG10 = 1
                         break
+                    
                     if (resn > atol) or (iter >= itra):  # Start bisection
                         itol += 1
                         if itol <= ntol:
@@ -643,6 +651,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                         FLAG11 = 1
                         FLAG20 = 1
                         break
+                    
                 # Solve the system of equation
                 if FLAG11 == 0:
                     soln = np.linalg.solve(gkf, force)
