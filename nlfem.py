@@ -426,7 +426,7 @@ def prout(OUTFILE, TIME, NUMNP, NE, NDOF, sigma, disptd):
     # These are the stresses at each integration points
     for i in np.arange(1, NE+1):
         OUTFILE.write(f"\r\nElement {i:5d}")
-        for j in np.arange(0, 8*i):
+        for j in np.arange(8*(i-1), 8*i):
             OUTFILE.write(
                 f"\r\n{sigma[0, j]:11.3e} {sigma[1, j]:11.3e} {sigma[2, j]:11.3e} {sigma[3, j]:11.3e} {sigma[4, j]:11.3e} {sigma[5, j]:11.3e}")
 
