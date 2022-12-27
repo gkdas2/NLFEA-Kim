@@ -605,7 +605,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                 ndisp = np.shape(sdispt)[0]
                 fixeddof = ndof*(sdispt[:, 0] - 1) + sdispt[:, 1] - 1
                 gkf[fixeddof] = np.zeros([ndisp, neq])
-                
+
                 Ieye = np.eye(ndisp)
                 for i in range(len(fixeddof)):
                     for j in range(len(fixeddof)):
