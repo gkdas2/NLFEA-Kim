@@ -1,42 +1,32 @@
 import numpy as np
+from scipy import sparse
+
 
 # -------------------------------------------------------------------------
-
-
 def shapel(xi, elxy):
-    r""" Compute shape function, derivatives, and determinant of hex element. 
+    """ Compute shape function, derivatives, and determinant of hex element. 
 
     Inputs: 
-
             xi: (xi, eta, zi) in the reference coordinates is the location where shape function and derivative are to be evaluated.
-
             elxy: 8x3 matrix. It contains nodal coordinates of eight nodes of the element.
 
     Returns:
-
             sf: 8x1 array. Shape functions
-
             gdsf: 3x8 matrix. Derivatives of the shape function, dN_dx
-
             det: Scalar. Determinant of the Jacobian of the mapping.            
     """
-
     # Isoparametric element coordinates
     xnode = np.array([[-1,  1,  1, -1, -1,  1,  1, -1],
                       [-1, -1,  1,  1, -1, -1,  1,  1],
                       [-1, -1, -1, -1,  1,  1,  1,  1]])
-
     quar = 0.125
-
     # Shape functions
     sf = np.zeros(8)
-
     # Derivative of shape function
     dsf = np.zeros((3, 8))
 
     for i in range(8):
         xp, yp, zp = xnode[:, i]    # xi_i, eta_i, zi_i
-
         # isoparametric shape functons. Eqn 1.136
         xi0 = np.array([1+xi[0]*xp, 1+xi[1]*yp, 1+xi[2]*zp])
         sf[i] = quar*xi0[0]*xi0[1]*xi0[2]   # N(xi_)
@@ -48,7 +38,6 @@ def shapel(xi, elxy):
     det = np.linalg.det(gj)
     gjinv = np.linalg.inv(gj)
     gdsf = gjinv@dsf  # DN_dx Eqn 1.138
-
     return sf, gdsf, det
 # -------------------------------------------------------------------------
 
@@ -60,48 +49,38 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
 
     Inputs:
         etan: Size: [6,6]. Elastic stiffness matrix D for voigt notation. Eq 1.81
-
         UPDATE: Logical. True: save stress value
-
         LTAN: logical. True: calculate global stiffness matrix
-
         ne: integer. Total number of elements
-
         ndof: integer. Dimension of problem (3)
-
         xyz: [nnode, 3]. Coordinates of all nodes
-
         le: [ne, 8]. Element connectivity   
-
         sigma: stress at each integration point (updated)
-
         force: residual force array. 
     Calls:
         shapel() at each integration points    
     """
-
     # Integration points and weights
     xg = np.array([-0.57735026918, 0.57735026918])
     wgt = np.array([1.0, 1.0])
-
     # Stress storage index (No of integration points)
     intn = 0
 
     # -- Loop over elements to compute K and F
     for ie in np.arange(1, ne+1):
-
         # Nodal coordinates and incremental displacements
         elxy = xyz[le[ie-1]-1]
-
+        #print(rf"elxy elast3d: {elxy}")
         # Local to global mapping
+        # Each entry in idof corresponds to its actual number in global dofs
         idof = np.zeros(24, dtype=np.int32)
-        for i in range(8):
-            ii = i*ndof
-            idof[ii:ii+ndof] = np.arange((le[ie-1, i]-1)
-                                         * ndof, (le[ie-1, i]-1)*ndof + ndof)
-
-        dsp = disptd[idof].reshape(ndof, 8)
-
+        for i, v in enumerate(le[ie-1]-1):
+            idof[ndof*i] = ndof*v
+            idof[ndof*i + 1] = ndof*v + 1
+            idof[ndof*i + 2] = ndof*v + 2
+        #print(rf"idof: {idof}")
+        dsp = disptd[idof].reshape(ndof, 8, order='F')
+        #print(rf"dsp elast3d: {dsp}")
         # Loop over integration points
         for lx in np.arange(2):
             for ly in np.arange(2):
@@ -110,17 +89,16 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     e2 = xg[ly]
                     e3 = xg[lz]
                     intn += 1
-
                     # Determinant and shape function derivative
                     _, shpd, det = shapel(np.array([e1, e2, e3]), elxy)
+                    #print(rf"shpd elast3d: {shpd}")
                     fac = wgt[lx]*wgt[ly]*wgt[lz]*det
-
                     # Strain
                     deps = dsp@shpd.T  # gradient of u, r=eqn 1.139
                     # Strain in Voight notation (note y12 = 2e12)
                     ddeps = np.array([deps[0, 0], deps[1, 1], deps[2, 2], deps[0, 1] +
                                      deps[1, 0], deps[1, 2]+deps[2, 1], deps[0, 2]+deps[2, 0]])
-
+                    #print(rf"ddeps elast3d: {ddeps}")
                     # Stress
                     stress = etan@ddeps  # stress = D*strain using voigt notation
 
@@ -129,7 +107,6 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                         sigma[:, intn-1] = stress.copy()
 
                     # Add residual force and stiffness matrix
-
                     # Assemble the B matrix = dN_dx_. Eqn 1.140
                     bm = np.zeros((6, 24))
                     for i in range(8):
@@ -147,11 +124,9 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     # Compute element tangent stiffness and iteratively add to global tangent stiffness matrix
                     if LTAN:
                         ekf = bm.T@etan@bm  # ke_intergationPoint  = B.T*D*B
-
                         for i in range(24):
                             for j in range(24):
-                                gkf[idof[i], idof[j]] += fac*ekf
-
+                                gkf[idof[i], idof[j]] += fac*ekf[i, j]
     return force, gkf, sigma
 # -------------------------------------------------------------------------
 
@@ -160,19 +135,13 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
 def plset(prop, MID, ne):
     """
     Initialize history variables and elastic stiffness matrix.
-
     XQ : 1-6 = Back stress alpha, 7 = Effective plastic strain
-
     SIGMA : Stress for rate-form plasticity
-
             Left Cauchy-Green tensor XB for multiplicative plasticity
-
             ETAN : Elastic stiffness matrix
     """
-
     lam = prop[0]
     mu = prop[1]
-
     n = 8*ne    # 8 integration points per element
 
     if MID > 30:
@@ -182,7 +151,6 @@ def plset(prop, MID, ne):
         etan = np.array([[lam + 2*mu, lam, lam],
                          [lam, lam+2*mu, lam],
                          [lam, lam, lam+2*mu]])
-
     else:
         sigma = np.zeros((6, n))
         xq = np.zeros((7, n))
@@ -194,7 +162,6 @@ def plset(prop, MID, ne):
                         [0, 0, 0, 0, mu, 0],
                         [0, 0, 0, 0, 0, mu]
                         ])
-
     return etan, sigma, xq
 # -------------------------------------------------------------------------
 
@@ -219,9 +186,7 @@ def itgzone(xyz, le, nout):
             print(f"Negative Jacobian in element {i}")
             print(f"Node coordinates are {elxy}")
             raise ValueError(" Negative Jacobian")
-
         volume += dvol
-
     return volume
 # -------------------------------------------------------------------------
 
@@ -315,9 +280,7 @@ def mooney(F, A10, A01, K, LTAN):
         J1EE = -w1*(J1E@J3E.T + J3E@J1E.T) + w2*(J3E@J3E.T) - w3*I3EE
         J2EE = -w4*(J2E@J3E.T + J3E@J2E.T) + w5*(J3E@J3E.T) + w6*I2EE - w7*I3EE
         J3EE = -w8*(J3E@J3E.T) + w9*I3EE
-
         D = A10*J1EE + A01*J2EE + K*(J3E@J3E.T) + K*(J3-1)*J3EE
-
     return Stress, D
 # -------------------------------------------------------------------------
 
@@ -329,23 +292,17 @@ def cauchy(F, S):
     Inputs:
             F : Deformation gradient, [3,3]
             S : PK2 Stress, [6,1]
-
     """
-
     # Translate S into 3x3 matrix
     PK = np.array([[S[0], S[3], S[5]],
                    [S[3], S[1], S[4]],
                    S[5], S[4], S[2]])
-
     detf = np.linalg.det(F)
-
     PKF = PK@F.T
     ST = F@PKF/detf
-
     # Translate to voigt notation
     cauchyStress = np.array(
         [ST[0, 0], ST[1, 1], ST[2, 2], ST[0, 1], ST[1, 2], ST[0, 3]])
-
     return cauchyStress
 # -------------------------------------------------------------------------
 
@@ -355,19 +312,16 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
     """
     Compute global stiffness matrix and residual force for hyperleastic material models.
     """
-
     # Integration points and weights
     XG = np.array([-0.577350, 0.577350])
     WGT = np.array([1.0, 1.0])
 
     # Index for history variables (eaxh integration points)
     intn = 0
-
     # -- Loop over elements, this is the main loop to compute K and F
     for ie in range(1, ne+1):
         # Nodal coordinates and incremental displacements
         elxy = xyz[le[ie-1]-1]
-
         # Local to global mapping
         # Each entry in idof corresponds to its actual number in global dofs
         idof = np.zeros(24)
@@ -375,41 +329,31 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
             idof[ndof*i] = ndof*v
             idof[ndof*i + 1] = ndof*v + 1
             idof[ndof*i + 2] = ndof*v + 2
-
-        dsp = disptd[idof].reshape((ndof, 8))
+        dsp = disptd[idof].reshape(ndof, 8, order='F')
 
         # -- Loop over integration points
         for lx in range(2):
             for ly in range(2):
                 for lz in range(2):
                     E1, E2, E3 = XG[lx], XG[ly], XG[lz]
-
                     intn += 1  # Keep track of the intergration point index
-
                     # Calcualte determinant and shape function derivative at this integration point
                     _, shpd, det = shapel(np.array([E1, E2, E3]), elxy)
-
                     FAC = WGT[lx]*WGT[ly]*WGT[lz]*det   # Just a variable
-
                     # Calculate Deformation gradient F = grad0U + I
                     F = dsp@shpd.T + np.eye(3)
-
                     # Compute PK2 stress and tangent stiffness
                     stress, dtan = mooney(F, prop[0], prop[1], prop[2], LTAN)
-
                     # Update plastic variable
                     if UPDATE:
                         stress = cauchy(F, stress)
                         sigma[:, intn-1] = stress.copy()
-
                     # -- Add residual force and tangent stiffness matrix
                     bn = np.zeros((6, 24))
                     bg = np.zeros((9, 24))
-
                     # Add entries
                     for i in range(8):
                         col = np.arange(i*ndof, i*ndof + 2 + 1)
-
                         bn[:, col] = np.array([
                                               [shpd[0, i]*F[0, 0], shpd[0, i]
                                                   * F[1, 0], shpd[0, i]*F[2, 0]],
@@ -424,7 +368,6 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                                               [shpd[0, i]*F[0, 2] + shpd[2, i]*F[0, 0], shpd[0, i]*F[1, 2] +
                                                   shpd[2, i]*F[1, 0], shpd[0, i]*F[2, 2] + shpd[2, i]*F[2, 0]]
                                               ])
-
                         bg[:, col] = np.array([
                             [shpd[0, i], 0, 0],
                             [shpd[1, i], 0, 0],
@@ -435,28 +378,66 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                             [0, 0, shpd[0, i]],
                             [0, 0, shpd[1, i]],
                             [0, 0, shpd[2, i]]])
-
                         # Residual forces
                         force[idof] -= FAC*bn.T@stress
-
                         # Tangent stiffness
                         if LTAN:
                             # Expand stress to matrix form
                             sig = np.array([[stress[0], stress[3], stress[5]],
                                             [stress[3], stress[1], stress[4]],
                                             [stress[5], stress[4], stress[2]]])
-
                             shead = np.kron(np.eye(3), sig)
-
                             ekf = bn.T@dtan@bn + bg.T@shead@bg
-
                             for i in range(24):
                                 for j in range(24):
                                     gkf[idof[i], idof[j]] += FAC*ekf
-
     return force, gkf, sigma
+# -------------------------------------------------------------------------
 
 
+# -------------------------------------------------------------------------
+def output(FLG, ITER, RESN, TIME, DELTA):
+    """Print convergence history."""
+    if FLG == 1:
+        if ITER > 2:
+            print(rf"Iter: {ITER}, Residual: {RESN} ")
+        else:
+            print(
+                rf"Time: {np.round(TIME, 3)}, Time Step: {np.round(DELTA, 6)}, Iter: {ITER}, Residual: {RESN}")
+# -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+def prout(OUTFILE, TIME, NUMNP, NE, NDOF, sigma, disptd):
+    """Print converged displacements and stresses"""
+
+    OUTFILE.write(
+        f"\r\n\r\nTIME = {TIME:11.3e}\r\n\r\nNodal Displacements\r\n")
+    OUTFILE.write(f"\r\n Node          U1          U2          U3")
+    # These are the displacements at each node
+    for i in np.arange(1, NUMNP+1):
+        ii = NDOF*(i-1)
+        OUTFILE.write(
+            f"\r\n{i:5d} {disptd[ii]:11.3e} {disptd[ii+1]:11.3e} {disptd[ii+2]:11.3e}")
+
+    OUTFILE.write(f"\r\n\r\nElement Stress\r\n")
+    OUTFILE.write(
+        f"\r\n        S11        S22        S33        S12        S23        S13")
+    # These are the stresses at each integration points
+    for i in np.arange(1, NE+1):
+        OUTFILE.write(f"\r\nElement {i:5d}")
+        for j in np.arange(0, 8*i):
+            OUTFILE.write(
+                f"\r\n{sigma[0, j]:11.3e} {sigma[1, j]:11.3e} {sigma[2, j]:11.3e} {sigma[3, j]:11.3e} {sigma[4, j]:11.3e} {sigma[5, j]:11.3e}")
+
+    OUTFILE.write(f"\r\n\r\n")
+# -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+def debug(arg=None):
+    """Utility function to pause at the location where this is called."""
+    input(rf"Paused at flag: {arg}")
 # -------------------------------------------------------------------------
 
 
@@ -488,20 +469,18 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
     sigma: [6, 8, ne]: Stress at each integration points
     xq: [7, 8, ne]: History variable at each integration points
     """
+    # open file to store output.
+    outfile = open(nout, "w")
 
     numnp, ndof = np.shape(xyz)
-
     ne = np.shape(le)[0]
-
     neq = ndof*numnp
-
     disptd = np.zeros(neq)  # Nodal displacement
     dispdd = np.zeros(neq)  # Nodal increment
 
     if MID >= 0:
         # Initialize material properties
         etan, sigma, xq = plset(prop, MID, ne)
-
     _ = itgzone(xyz, le, nout)    # Check element connectivity
 
     # Load increments [Start, End, Increment, InitialLoad, FinalLoad]
@@ -512,7 +491,6 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
     delta = tims[iload-1, 2]    # Time increment
     cur1 = tims[iload-1, 3]     # Start load factor
     cur2 = tims[iload-1, 4]     # End load factor
-
     delta0 = delta      # Saved time increment
     time = timef    # starting time
     tdelta = timei - timef  # Total time interval for load step
@@ -530,7 +508,6 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
         FLAG10 = 0
         # Store previously converged displacement for the sake of bisection
         cdisp = disptd.copy()
-
         if itol == 1:  # No bisection
             delta = delta0
             tary[itol-1] = time + delta
@@ -539,13 +516,10 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
             delta = tary[itol-1] - tary[itol]   # New time increment
             tary[itol] = 0  # Empty converged bisection level
             istep = istep - 1   # Decrease load increment
-
         time0 = time    # Save current time
-
         # Update stress and history variables
         UPDATE = True
         LTAN = False
-
         gkf = np.zeros((neq, neq))  # make it sparse
         force = np.zeros(neq)
         if MID == 0:
@@ -559,6 +533,8 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
             raise NotImplementedError("Wrong material")
 
         # Print Results
+        if istep >= 0:
+            prout(outfile, time, numnp, ne, ndof, sigma, disptd)
 
         time += delta    # Increase time
         istep += 1
@@ -571,7 +547,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
         # This is because the displacement field DISPTD is updated on the go, and only reverted back using previous value in CDISP if bisection is needed.
         FLAG11 = 1
         while FLAG11:       # Bisection loop starts
-            FLAG10 = 0
+            FLAG11 = 0
             if (time - timei) > 1e-10:  # Time passed the end time
                 if (timei + delta - time) > 1e-10:  # One more at the end time
                     delta = timei + delta-time  # Time increment to end
@@ -579,29 +555,28 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                     time = timei  # current time is the end
                 else:
                     iload += 1   # Progress to next step
-                    if (iload > nload):  # Finisjhed final load step
+                    if (iload > nload):  # Finished final load step
                         FLAG10 = 0  # Stop the program
                         break
                     else:   # Next load step
                         time -= delta
-                        delta = tims[2, iload-1]
+                        delta = tims[iload-1, 2]
                         delta0 = delta
                         time = time + delta
-                        timef = tims[0, iload-1]
-                        timei = tims[1, iload-1]
+                        timef = tims[iload-1, 0]
+                        timei = tims[iload-1, 1]
                         tdelta = timei - timef
-                        cur1 = tims[3, iload-1]
-                        cur2 = tims[4, iload]
+                        cur1 = tims[iload-1, 3]
+                        cur2 = tims[iload-1, 4]
 
             # Load factor and prescribed displacements
             factor = cur1 + (time - timef)/tdelta*(cur2 - cur1)
             sdisp = delta*sdispt[:, 2]/tdelta*(cur2-cur1)
 
-            # -- Start convergence iteration
+            # -- Start NR convergence iteration
             # ------------------------------------------
             iter = 0
             dispdd = np.zeros(neq)
-
             # This third loop [20] is for NR convergence iteration.
             # The major part of this loop is devoted to calculating the residual vector FORCE and tangent matrix GKF.
             # If residual < threshold, iteration has converged. In such case, loop ends, and procedure moves to next load increment.
@@ -609,35 +584,133 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
             # If none of the iteration converges, invoke bisection: half the load increment, and try again with the NR process.
             FLAG20 = 1
             while FLAG20:
+                FLAG20 = 0
                 iter += 1
-
                 # Initialize global stiffness and residual vector F
                 gkf = np.zeros((neq, neq))  # make it sparse
                 force = np.zeros(neq)
-
                 # Assemble K and F
                 UPDATE = False
                 LTAN = True
                 if MID == 0:
                     elast3d(etan, UPDATE, LTAN, ne, ndof, xyz,
                             le, disptd, force, gkf, sigma)
-
+                # Increase external force. First identify the correct global dof at which these loads are applied,i.e, ndof*node + dof.
+                # Then add the current load increment to the position.
+                loc = ndof*(extforce[:, 0]-1) + (extforce[:, 1] - 1)
+                # Make sure the indices are integers. Look for better implementation.
+                loc = np.array([int(iloc) for iloc in loc], dtype=np.int64)
+                force[loc] += factor*extforce[:, 2]
                 # Prescribed displacement BC
                 ndisp = np.shape(sdispt)[0]
-                if ndisp != 0:
-                    fixeddof = ndof*(sdispt[:, 0] - 1) + sdispt[:, 1]
-                    gkf[fixeddof] = np.zeros([ndisp, neq])
+                fixeddof = ndof*(sdispt[:, 0] - 1) + sdispt[:, 1] - 1
+                gkf[fixeddof] = np.zeros([ndisp, neq])
+                
+                Ieye = np.eye(ndisp)
+                for i in range(len(fixeddof)):
+                    for j in range(len(fixeddof)):
+                        gkf[fixeddof[i], fixeddof[j]] = prop[0] * \
+                            Ieye[i, j]
 
-                    Ieye = np.eye(ndisp)
-                    for i in range(len(fixeddof)):
-                        for j in range(len(fixeddof)):
-                            gkf[fixeddof[i], fixeddof[j]] = prop[0] * \
-                                Ieye[fixeddof[i], fixeddof[j]]
+                force[fixeddof] = 0
+                if iter == 1:
+                    force[fixeddof] = prop[0] * sdisp[:]
 
-                    force[fixeddof] = 0
+                # Check convergence
+                if iter > 1:
+                    fixeddof = ndof*(sdispt[:, 0] - 1) + sdispt[:, 1] - 1
+                    alldof = np.arange(0, neq, dtype=np.int64)
+                    freedof = np.setdiff1d(alldof, fixeddof)
+                    resn = np.max(np.abs(force[freedof]))
+                    output(1, iter, resn, time, delta)
+                    if resn < tol:
+                        FLAG10 = 1
+                        break
+                    if (resn > atol) or (iter >= itra):  # Start bisection
+                        itol += 1
+                        if itol <= ntol:
+                            delta = delta/2
+                            time = time0 + delta
+                            tary[itol-1] = time
+                            disptd = cdisp.copy()
+                            print(
+                                rf"Not converged. Bisecting load increment {itol}")
+                        else:
+                            raise RuntimeError(
+                                "Maximum number of bisection reached without convergence. Terminating now...")
 
-                    if iter == 1:
-                        force[fixeddof] = prop[0] * sdisp[:]
+                        # If here, no runtime error raised. Proceed for the NR iterations
+                        FLAG11 = 1
+                        FLAG20 = 1
+                        break
+                # Solve the system of equation
+                if FLAG11 == 0:
+                    soln = np.linalg.solve(gkf, force)
+                    dispdd += soln
+                    disptd += soln
+                    FLAG20 = 1
+                else:
+                    FLAG20 = 0
+
+                if FLAG10 == 1:
+                    break
+            # 20 Convergence iteration end
+        # 11 Bisection interation end
+    # 10 Load increment iteration end
+    print(rf" *** Successful end of program *** ")
+    outfile.close
 
 
+if __name__ == "__main__":
+    XYZ = np.array([[0, 0, 0],
+                    [1, 0, 0],
+                    [1, 1, 0],
+                    [0, 1, 0],
+                    [0, 0, 1],
+                    [1, 0, 1],
+                    [1, 1, 1],
+                    [0, 1, 1]])
+
+    # Element connectivity
+    LE = np.array([[1,  2,  3,  4,  5,  6,  7,  8]])
+
+    # External forces [Node, DOF, Value]
+    EXTFORCE = np.array([[5, 3, 10e3],
+                         [6, 3, 10e3],
+                         [7, 3, 10e3],
+                         [8, 3, 10e3]])
+
+    # Prescribed displacement [Node, DOF, Value]
+    SDISPT = np.array([[1, 1, 0],
+                       [1, 2, 0],
+                       [1, 3, 0],
+                       [2, 2, 0],
+                       [2, 3, 0],
+                       [3, 3, 0],
+                       [4, 1, 0],
+                       [4, 3, 0]])
+
+    # Material Properties
+    # MID = 0(Linear elastic) PROP: [lambda, mu]
+    MID = 0
+    E = 2e11
+    NU = 0.3
+    LAMBDA = E*NU/((1 + NU) * (1 - 2*NU))
+    MU = E/(2 * (1 + NU))
+    PROP = np.array([1.1538e6, 7.6923e5])
+
+    # Load increments [Start, End, Increment, InitialFactor, FinalFactor]
+    TIMS = np.array([[0, 0.5, 0.1, 0, 0.5],
+                    [0.5, 1.0, 0.1, 0.5, 1]])
+
+    # Set program parameter
+    ITRA = 30
+    ATOL = 1e5
+    NTOL = 6
+    TOL = 1E-6
+
+    # Call main function
+    NOUT = "output.out"
+    out = nlfea(ITRA, TOL, ATOL, NTOL, TIMS, NOUT,
+                MID, PROP, EXTFORCE, SDISPT, XYZ, LE)
 # -------------------------------------------------------------------------
