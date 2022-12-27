@@ -1,2 +1,2 @@
 # NLFEM Kim
- Worked out examples for the Intruction to Nonlinear FEA textbook by  Nam-Ho Kim in Python
+Python version of the NLFEA code in textbook Intruction to Nonlinear FEA textbook by  Nam-Ho Kim
