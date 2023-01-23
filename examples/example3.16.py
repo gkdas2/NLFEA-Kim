@@ -1,7 +1,7 @@
 import numpy as np
 from nlfem import nlfea
 
-# Hyperelastic tension example
+# Hyperelastic tension example 1 element
 
 XYZ = np.array(
     [
@@ -59,7 +59,7 @@ TIMS = np.array([[0, 1.0, 0.05, 0.01, 1.0]])
 # Set program parameter
 ITRA = 30
 ATOL = 1e5
-NTOL = 10
+NTOL = 6
 TOL = 1e-6
 
 # Call main function

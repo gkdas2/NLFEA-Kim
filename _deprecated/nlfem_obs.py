@@ -177,7 +177,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
 
                 # -- Increase external force if exforce is not empty. First identify the correct global dof at which these loads are applied,i.e, ndof*node + dof.
                 # -- Then add the current load increment to the position.
-                if extforce.size:
+                if extforce.size > 0:
                     loc = ndof * (extforce[:, 0] - 1) + (extforce[:, 1] - 1)
                     # Make sure the indices are integers. Look for better implementation.
                     loc = np.array([int(iloc) for iloc in loc], dtype=np.int64)
@@ -589,29 +589,6 @@ def mooney(F, A10, A01, K, LTAN):
 
 
 # -------------------------------------------------------------------------
-def cauchy(F, S):
-    """
-    Convert PK2 stress into Cauchy stress.
-    Inputs:
-            F : Deformation gradient, [3,3]
-            S : PK2 Stress, [6,1]
-    """
-    # -- Translate S into 3x3 matrix
-    PK = np.array([[S[0], S[3], S[5]], [S[3], S[1], S[4]], [S[5], S[4], S[2]]])
-    detf = np.linalg.det(F)
-    PKF = PK @ F.T
-    ST = F @ PKF / detf
-    # -- Translate to voigt notation
-    cauchyStress = np.array(
-        [ST[0, 0], ST[1, 1], ST[2, 2], ST[0, 1], ST[1, 2], ST[0, 2]]
-    )
-    return cauchyStress
-
-
-# -------------------------------------------------------------------------
-
-
-# -------------------------------------------------------------------------
 def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
     """
     Compute global stiffness matrix and residual force for hyperleastic material models.
@@ -634,12 +611,13 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
             idof[ndof * i] = ndof * v
             idof[ndof * i + 1] = ndof * v + 1
             idof[ndof * i + 2] = ndof * v + 2
+
         dsp = disptd[idof].reshape(ndof, 8, order="F")
 
         # -- Loop over integration points
-        for lx in range(2):
-            for ly in range(2):
-                for lz in range(2):
+        for lx in np.arange(2):
+            for ly in np.arange(2):
+                for lz in np.arange(2):
                     E1, E2, E3 = XG[lx], XG[ly], XG[lz]
                     intn += 1  # Keep track of the intergration point index
 
@@ -657,6 +635,10 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     if UPDATE:
                         stress = cauchy(F, stress)
                         sigma[:, intn - 1] = stress.copy()
+                        
+                    print(f"ie:{ie}, intn: {intn}, sig: {stress}")
+                    debug(12)     
+                        
                     # -- Add residual force and tangent stiffness matrix
                     bn = np.zeros((6, 24))
                     bg = np.zeros((9, 24))
@@ -664,7 +646,7 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     # -- Add entries
                     for i in range(8):
 
-                        col = np.arange(i * ndof, i * ndof + 2 + 1, dtype=np.int32)
+                        col = np.arange(i * ndof, i * ndof + ndof, dtype=np.int32)
                         bn[:, col] = np.array(
                             [
                                 [
@@ -714,28 +696,51 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                             ]
                         )
 
-                        # -- Residual forces
-                        force[idof] -= FAC * bn.T @ stress
-                        # -- Tangent stiffness
-                        if LTAN:
-                            # Expand stress to matrix form
-                            sig = np.array(
-                                [
-                                    [stress[0], stress[3], stress[5]],
-                                    [stress[3], stress[1], stress[4]],
-                                    [stress[5], stress[4], stress[2]],
-                                ]
-                            )
-                            shead = np.kron(np.eye(3), sig)
-                            ekf = bn.T @ dtan @ bn + bg.T @ shead @ bg
-                            for i in range(24):
-                                for j in range(24):
-                                    gkf[idof[i], idof[j]] += FAC * ekf[i, j]
+                    # -- Residual forces
+                    force[idof] -= FAC * bn.T @ stress
+                    # -- Tangent stiffness
+                    if LTAN:
+                        # Expand stress to matrix form
+                        sig = np.array(
+                            [
+                                [stress[0], stress[3], stress[5]],
+                                [stress[3], stress[1], stress[4]],
+                                [stress[5], stress[4], stress[2]],
+                            ]
+                        )
+                        shead = np.kron(np.eye(3), sig)
+                        ekf = bn.T @ dtan @ bn + bg.T @ shead @ bg
+                        for i in range(24):
+                            for j in range(24):
+                                gkf[idof[i], idof[j]] += FAC * ekf[i, j]
+                               
     return force, gkf, sigma
 
 
 # -------------------------------------------------------------------------
 
+
+# -------------------------------------------------------------------------
+def cauchy(F, S):
+    """
+    Convert PK2 stress into Cauchy stress.
+    Inputs:
+            F : Deformation gradient, [3,3]
+            S : PK2 Stress, [6,1]
+    """
+    # -- Translate S into 3x3 matrix
+    PK = np.array([[S[0], S[3], S[5]], [S[3], S[1], S[4]], [S[5], S[4], S[2]]])
+    detf = np.linalg.det(F)
+    PKF = PK @ F.T
+    ST = F @ PKF / detf
+    # -- Translate to voigt notation
+    cauchyStress = np.array(
+        [ST[0, 0], ST[1, 1], ST[2, 2], ST[0, 1], ST[1, 2], ST[0, 2]]
+    )
+    return cauchyStress
+
+
+# -------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------
 
