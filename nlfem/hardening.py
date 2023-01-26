@@ -1,13 +1,16 @@
 import numpy as np
 
+
 def combHard(mp, D, deps, stressN, alphaN, epN):
     """Update stress and backstress for Linear Combined Isotropic/Kinematic Hardening.
 
     Inputs:
         mp: [lambda, mu, beta, H, Y0] are the material properties
         D: elastic stiffness matrix
-        stressN: [s11, s22, s33, t12, t23, t13]
-        alphaN: [a11, a22, a33, a12, a23, a13]
+        deps: current strain increment, NOT total strain
+        stressN: [s11, s22, s33, t12, t23, t13] at previous load increment 
+        alphaN: [a11, a22, a33, a12, a23, a13] at previous load increment
+        epN: plastic strain at previous load increment
     """
 
     Iden = np.array([1, 1, 1, 0, 0, 0])
@@ -32,10 +35,10 @@ def combHard(mp, D, deps, stressN, alphaN, epN):
     I1 = np.sum(stresstr[0:3])
 
     # Deviatoric stress
-    str = stresstr - I1 @ Iden / 3
-
+    strDeviatoric = stresstr - I1 * Iden / 3
+    
     # Shifted stress and norm
-    eta = str - alphaN
+    eta = strDeviatoric - alphaN
     etat = np.sqrt(
         eta[0] ** 2
         + eta[1] ** 2
@@ -100,10 +103,10 @@ def combHardTan(mp, D, deps, stressN, alphaN, epN):
     I1 = np.sum(stresstr[0:3])
 
     # Deviatoric stress
-    str = stresstr - I1 @ Iden / 3
+    strDeviatoric = stresstr - I1 * Iden / 3
 
     # Shifted stress and norm
-    eta = str - alphaN
+    eta = strDeviatoric - alphaN
     etat = np.sqrt(
         eta[0] ** 2
         + eta[1] ** 2
