@@ -1,7 +1,7 @@
 import numpy as np
 
 # -------------------------------------------------------------------------
-def shapel(xi, elxy):
+def hex3D(xi, elxy):
     """Compute shape function, derivatives, and determinant of hex element.
 
     Inputs:
@@ -103,7 +103,7 @@ def itgzone(xyz, le, nout):
 
     for i in range(1, ne + 1):
         elxy = xyz[le[i - 1] - 1]
-        _, _, det = shapel(np.array([0, 0, 0]), elxy)
+        _, _, det = hex3D(np.array([0, 0, 0]), elxy)
         dvol = 8 * det
         if dvol < eps:
             print(f"Negative Jacobian in element {i}")

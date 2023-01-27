@@ -1,5 +1,5 @@
 import numpy as np
-from nlfem.shapefunctions import shapel
+from nlfem.shapefunctions import hex3D
 
 # -------------------------------------------------------------------------
 def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
@@ -16,8 +16,6 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
         le: [ne, 8]. Element connectivity
         sigma: stress at each integration point (updated)
         force: residual force array.
-    Calls:
-        shapel() at each integration points
     """
     # -- Integration points and weights
     xg = np.array([-0.57735026918, 0.57735026918])
@@ -48,7 +46,7 @@ def elast3d(etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     e3 = xg[lz]
                     intn += 1
                     # -- Determinant and shape function derivative
-                    _, shpd, det = shapel(np.array([e1, e2, e3]), elxy)
+                    _, shpd, det = hex3D(np.array([e1, e2, e3]), elxy)
                     fac = wgt[lx] * wgt[ly] * wgt[lz] * det
                     # -- Strain
                     # gradient of u, r=eqn 1.139

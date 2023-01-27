@@ -8,7 +8,7 @@ def combHard(mp, D, deps, stressN, alphaN, epN):
         mp: [lambda, mu, beta, H, Y0] are the material properties
         D: elastic stiffness matrix
         deps: current strain increment, NOT total strain
-        stressN: [s11, s22, s33, t12, t23, t13] at previous load increment 
+        stressN: [s11, s22, s33, t12, t23, t13] at previous load increment
         alphaN: [a11, a22, a33, a12, a23, a13] at previous load increment
         epN: plastic strain at previous load increment
     """
@@ -36,7 +36,7 @@ def combHard(mp, D, deps, stressN, alphaN, epN):
 
     # Deviatoric stress
     strDeviatoric = stresstr - I1 * Iden / 3
-    
+
     # Shifted stress and norm
     eta = strDeviatoric - alphaN
     etat = np.sqrt(
