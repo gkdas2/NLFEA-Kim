@@ -1,11 +1,11 @@
 import numpy as np
-from nlfem.shapefunctions import shapel
+from nlfem.shapefunctions import hex3D
 from nlfem.mooney import mooney
 
 
 def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
     """
-    Compute global stiffness matrix and residual force for hyperleastic material models.
+    Compute Cauchy stress, global stiffness matrix and residual force for hyperleastic material models.
     """
     # -- Integration points and weights
     XG = np.array([-0.577350, 0.577350])
@@ -36,7 +36,7 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
                     intn += 1  # Keep track of the intergration point index
 
                     # -- Calcualte determinant and shape function derivative at this integration point
-                    _, shpd, det = shapel(np.array([E1, E2, E3]), elxy)
+                    _, shpd, det = hex3D(np.array([E1, E2, E3]), elxy)
                     FAC = WGT[lx] * WGT[ly] * WGT[lz] * det  # Just a variable
 
                     # -- Calculate Deformation gradient F = grad0U + I
@@ -47,10 +47,10 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
 
                     # -- Update plastic variable
                     if UPDATE:
-                        stress = cauchy(F, stress)
+                        #stress = cauchy(F, stress)
                         sigma[:, intn - 1] = stress.copy()
 
-                    print(f"ie:{ie}, intn: {intn}, sig: {stress}")
+                    #print(f"ie:{ie}, intn: {intn}, sig: {stress}")
 
                     # -- Add residual force and tangent stiffness matrix
                     bn = np.zeros((6, 24))

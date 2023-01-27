@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import sparse
 
 from nlfem.shapefunctions import plset, itgzone
 from nlfem.elastic import elast3d
@@ -8,6 +7,8 @@ from nlfem.hyperelastic import hyper3d
 from nlfem.util import prout, output
 
 # ----------------------------------------------------------------------------
+
+
 def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, le):
     r"""Main program for Hyperelastic/elastoplastic analysis.
 
@@ -224,7 +225,8 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                             time = time0 + delta
                             tary[itol - 1] = time
                             disptd = cdisp.copy()
-                            print(rf"Not converged. Bisecting load increment {itol}")
+                            print(
+                                rf"Not converged. Bisecting load increment {itol}")
                         else:
                             raise RuntimeError(
                                 "Maximum number of bisection reached without convergence. Terminating now..."
@@ -272,7 +274,8 @@ if __name__ == "__main__":
     LE = np.array([[1, 2, 3, 4, 5, 6, 7, 8]])
 
     # External forces [Node, DOF, Value]
-    EXTFORCE = np.array([[5, 3, 10e3], [6, 3, 10e3], [7, 3, 10e3], [8, 3, 10e3]])
+    EXTFORCE = np.array([[5, 3, 10e3], [6, 3, 10e3],
+                        [7, 3, 10e3], [8, 3, 10e3]])
 
     # Prescribed displacement [Node, DOF, Value]
     SDISPT = np.array(
@@ -308,5 +311,6 @@ if __name__ == "__main__":
 
     # Call main function
     NOUT = "output.out"
-    out = nlfea(ITRA, TOL, ATOL, NTOL, TIMS, NOUT, MID, PROP, EXTFORCE, SDISPT, XYZ, LE)
+    out = nlfea(ITRA, TOL, ATOL, NTOL, TIMS, NOUT,
+                MID, PROP, EXTFORCE, SDISPT, XYZ, LE)
 # -------------------------------------------------------------------------
