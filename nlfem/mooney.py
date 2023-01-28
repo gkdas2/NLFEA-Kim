@@ -35,8 +35,7 @@ def mooney(F, A10, A01, K, LTAN):
     I1 = C1 + C2 + C3
     I2 = C1 * C2 + C1 * C3 + C2 * C3 - C4 * C4 - C5 * C5 - C6 * C6
     I3 = np.linalg.det(C)
-    
-    
+
     # -- Calculate Derivatives of I wrt E
     I1E = 2 * np.array([1, 1, 1, 0, 0, 0])
     I2E = 2 * np.array([C2 + C3, C3 + C1, C1 + C2, -C4, -C5, -C6])
@@ -106,10 +105,14 @@ def mooney(F, A10, A01, K, LTAN):
         w9 = x12 * I3 ** (-x12)
 
         # dJ_dEE
-        #J1EE = -w1 * (J1E @ J3E.T + J3E @ J1E.T) + w2 * (J3E @ J3E.T) - w3 * I3EE
-        J1EE = -w1 * ( np.outer(J1E, J3E) + np.outer(J3E, J1E)) + w2 * np.outer(J3E, J3E) - w3 * I3EE
+        # J1EE = -w1 * (J1E @ J3E.T + J3E @ J1E.T) + w2 * (J3E @ J3E.T) - w3 * I3EE
+        J1EE = (
+            -w1 * (np.outer(J1E, J3E) + np.outer(J3E, J1E))
+            + w2 * np.outer(J3E, J3E)
+            - w3 * I3EE
+        )
         J2EE = (
-            -w4 * (np.outer(J2E, J3E) + np.outer(J3E,J2E))
+            -w4 * (np.outer(J2E, J3E) + np.outer(J3E, J2E))
             + w5 * np.outer(J3E, J3E)
             + w6 * I2EE
             - w7 * I3EE

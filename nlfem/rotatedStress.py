@@ -1,15 +1,17 @@
 import numpy as np
 
 
-def convertToTensor3(S):
+def convertToTensor3(S: np.ndarray) -> np.ndarray:
     return np.array([[S[0], S[3], S[5]], [S[3], S[1], S[4]], [S[5], S[4], S[2]]])
 
 
-def convertToVoigt3(S):
+def convertToVoigt3(S: np.ndarray) -> np.ndarray:
     return np.array([S[0, 0], S[1, 1], S[2, 2], S[0, 1], S[1, 2], S[0, 2]])
 
 
-def rotatedStress(L, S, A):
+def rotatedStress(
+    L: np.ndarray, S: np.ndarray, A: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """Rotate stress and back stress to the rotation-free configuration.
 
     Inputs:
@@ -25,7 +27,9 @@ def rotatedStress(L, S, A):
     strTensor = convertToTensor3(S)
     alpTensor = convertToTensor3(A)
 
-    R = L @ (np.linalg.inv(np.eye(3) - 0.5 * L)) # Midpoint configuration ddelu/d(n+1/2)x
+    R = L @ (
+        np.linalg.inv(np.eye(3) - 0.5 * L)
+    )  # Midpoint configuration ddelu/d(n+1/2)x
     W = 0.5 * (R - R.T)
 
     R = np.eye(3) + np.linalg.inv(np.eye(3) - 0.5 * W) @ W

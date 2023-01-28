@@ -47,10 +47,10 @@ def hyper3d(prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma):
 
                     # -- Update plastic variable
                     if UPDATE:
-                        #stress = cauchy(F, stress)
+                        # stress = cauchy(F, stress)
                         sigma[:, intn - 1] = stress.copy()
 
-                    #print(f"ie:{ie}, intn: {intn}, sig: {stress}")
+                    # print(f"ie:{ie}, intn: {intn}, sig: {stress}")
 
                     # -- Add residual force and tangent stiffness matrix
                     bn = np.zeros((6, 24))
