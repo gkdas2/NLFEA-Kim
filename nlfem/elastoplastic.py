@@ -29,7 +29,7 @@ def plast3D(
     Inputs
     ================
     - MID : int
-        material model. [1: infinitesimal elastoplastic , 2: , 31: finite deformation elastoplastic ]
+        material model. [1: infinitesimal elastoplastic , 2: infinitesimal elastoplasticity with finite rotation , 31: finite deformation elastoplastic ]
     - prop : [lambda, mu, beta, H, Y0]
         material constants for combined linear isotropic/kinematic hardening
         Here, beta = combined hardening parameter, H = plastic modulus, Y0 = Initial Yield stress
