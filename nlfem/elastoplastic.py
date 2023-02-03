@@ -4,7 +4,7 @@ from nlfem.hardening import combHard, combHardTan
 from nlfem.rotatedStress import rotatedStress
 
 
-def plast3D(
+def plast3d(
     MID,
     prop,
     UPDATE,
@@ -59,7 +59,7 @@ def plast3D(
             idof[ndof * i + 2] = ndof * v + 2
 
         dsp = disptd[idof].reshape(ndof, 8, order="F")
-        dspd = dispdd(idof).reshape(ndof, 8, order="F")
+        dspd = dispdd[idof].reshape(ndof, 8, order="F")
 
         # -- Loop over integration points
         for lx in np.arange(2):
@@ -174,7 +174,8 @@ def plast3D(
                     # -- Tangent stiffness
                     if LTAN:
                         if MID == 1:
-                            DTAN = combHardTan(prop, ETAN, ddeps, stressn, alphan, epn)
+                            dtan = combHardTan(prop, ETAN, ddeps, stressn, alphan, epn)
+                            ekf = bn.T @ dtan @ bn
                         elif MID == 2:
                             dtan = combHardTan(prop, ETAN, ddeps, stressn, alphan, epn)
 
@@ -205,4 +206,4 @@ def plast3D(
                             for j in range(24):
                                 gkf[idof[i], idof[j]] += FAC * ekf[i, j]
 
-    return force, gkf, sigma
+    return force, gkf, sigma, xq

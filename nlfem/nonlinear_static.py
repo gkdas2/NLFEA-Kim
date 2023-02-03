@@ -3,6 +3,7 @@ import numpy as np
 from nlfem.shapefunctions import plset, itgzone
 from nlfem.elastic import elast3d
 from nlfem.hyperelastic import hyper3d
+from nlfem.elastoplastic import plast3d
 
 from nlfem.util import prout, output
 
@@ -100,7 +101,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                 etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma
             )
         elif MID > 0:
-            raise NotImplementedError("Plast3d not available")
+            force, gkf, sigma, xq = plast3d(MID, prop, UPDATE, LTAN, etan, ne, ndof, xyz, le, disptd, dispdd, force, gkf, sigma, xq)
         elif MID < 0:
             force, gkf, sigma = hyper3d(
                 prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma
@@ -176,7 +177,7 @@ def nlfea(itra, tol, atol, ntol, tims, nout, MID, prop, extforce, sdispt, xyz, l
                         etan, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma
                     )
                 elif MID > 0:
-                    raise NotImplementedError("implement plast3d")
+                    force, gkf, sigma, xq = plast3d(MID, prop, UPDATE, LTAN, etan, ne, ndof, xyz, le, disptd, dispdd, force, gkf, sigma, xq)
                 elif MID < 0:
                     force, gkf, sigma = hyper3d(
                         prop, UPDATE, LTAN, ne, ndof, xyz, le, disptd, force, gkf, sigma
